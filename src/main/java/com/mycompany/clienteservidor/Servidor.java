@@ -8,6 +8,8 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.List;
+import java.util.ArrayList;
 
 public class Servidor extends javax.swing.JFrame {
 
@@ -15,6 +17,8 @@ public class Servidor extends javax.swing.JFrame {
     static Socket s;
     static DataInputStream din;
     static DataOutputStream dout;
+    static List<DataOutputStream> clientStreams = new ArrayList<>();
+    
     
     public Servidor() {
         initComponents();
@@ -93,16 +97,18 @@ public class Servidor extends javax.swing.JFrame {
 
     private void msg_sendActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_msg_sendActionPerformed
     
-        // TODO add your handling code here:
-        try{
-            String msgout = "";
-            msgout = msg_text.getText().trim();
-            dout.writeUTF((msgout));
-            msg_text.setText("");
+            String msg = msg_text.getText().trim();
+            for (DataOutputStream dout : clientStreams) {   
+                try{
+            dout.writeUTF(msg);
+            
             
         }catch (Exception e){
+            e.printStackTrace();
+        }
             
         }
+            msg_text.setText("");
     }//GEN-LAST:event_msg_sendActionPerformed
 
     private void msg_textActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_msg_textActionPerformed
@@ -113,54 +119,38 @@ public class Servidor extends javax.swing.JFrame {
      * @param args the command line arguments
      */
     public static void main(String args[]) {
-        /* Set the Nimbus look and feel */
-        //<editor-fold defaultstate="collapsed" desc=" Look and feel setting code (optional) ">
-        /* If Nimbus (introduced in Java SE 6) is not available, stay with the default look and feel.
-         * For details see http://download.oracle.com/javase/tutorial/uiswing/lookandfeel/plaf.html 
-         */
-        try {
-            for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
-                if ("Nimbus".equals(info.getName())) {
-                    javax.swing.UIManager.setLookAndFeel(info.getClassName());
-                    break;
-                }
-            }
-        } catch (ClassNotFoundException ex) {
-            java.util.logging.Logger.getLogger(Servidor.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (InstantiationException ex) {
-            java.util.logging.Logger.getLogger(Servidor.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (IllegalAccessException ex) {
-            java.util.logging.Logger.getLogger(Servidor.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (javax.swing.UnsupportedLookAndFeelException ex) {
-            java.util.logging.Logger.getLogger(Servidor.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        }
-        //</editor-fold>
+    // Código existente para configurar la interfaz de usuario...
+    
+    try {
+        ss = new ServerSocket(1201); // Asegúrate de que el puerto 1201 no esté siendo usado por otra aplicación
+        while (true) {
+            Socket s = ss.accept();
+            DataInputStream din = new DataInputStream(s.getInputStream());
+            DataOutputStream dout = new DataOutputStream(s.getOutputStream());
+            clientStreams.add(dout);
 
-        /* Create and display the form */
-        java.awt.EventQueue.invokeLater(new Runnable() {
-            public void run() {
-                new Servidor().setVisible(true);
-            }
-        });
-        String msg = "";
-        
-        try{
-            ss = new ServerSocket(1201);
-            s = ss.accept();
-            
-            din = new DataInputStream(s.getInputStream());
-            dout = new DataOutputStream(s.getOutputStream());
-            
-            while (!msg.equals("exit"))
-            {
-                msg = din.readUTF();
-                msg_area.setText((msg_area.getText()).trim() + "\n Cliente: \t" + msg);
-            }
-            
-        }catch (Exception e){
-            
+            new Thread(() -> {
+                String msg;
+                while (true) {
+                    try {
+                        msg = din.readUTF();
+                        // Enviar el mensaje recibido a todos los clientes
+                        for (DataOutputStream out : clientStreams) {
+                            out.writeUTF(msg);
+                        }
+                    } catch (Exception e) {
+                        clientStreams.remove(dout);
+                        break; // Salir del bucle si hay un error
+                    }
+                }
+            }).start();
         }
+    } catch (Exception e) {
+        e.printStackTrace();
     }
+}
+
+
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JLabel jLabel1;
